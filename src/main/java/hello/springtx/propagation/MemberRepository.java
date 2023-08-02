@@ -22,6 +22,12 @@ public class MemberRepository {
         em.persist(member);
     }
 
+
+    public void NTsave(Member member) {
+        log.info("member save");
+        em.persist(member);
+    }
+
     public Optional<Member> find(String username) {
         return em.createQuery("select m from Member m where m.username = :username", Member.class)
                 .setParameter("username", username)
