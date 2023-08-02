@@ -8,6 +8,7 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.UnexpectedRollbackException;
 import org.springframework.transaction.interceptor.DefaultTransactionAttribute;
@@ -85,6 +86,7 @@ public class BasicTxTest {
     }
 
 //    required -> all required to commit for entirety to commit ( final state = commit ).
+//    like allMatch
     @Test
     void inner_commit() {
         log.info("external(outer) transaction start");
@@ -105,6 +107,7 @@ public class BasicTxTest {
         txManager.commit(outer);
         log.info("transaction committed");
     }
+    //    like allMatch
 
     @Test
     void outer_rollback() {
@@ -121,6 +124,7 @@ public class BasicTxTest {
     }
 
 
+    //    like allMatch
 
     @Test
     void inner_rollback() {
@@ -136,4 +140,61 @@ public class BasicTxTest {
         assertThatThrownBy(() -> txManager.commit(outer))
                 .isInstanceOf(UnexpectedRollbackException.class);
     }
+
+    @Test
+    void inner_rollback_requires_new() {
+
+        log.info("external(outer) transaction start");
+        TransactionStatus outer = txManager.getTransaction(new
+                DefaultTransactionAttribute());
+        log.info("outer.isNewTransaction()={}", outer.isNewTransaction());
+
+        log.info("inner transaction start");
+
+
+        log.info("suspends current transaction, inititates new transaction for the inner. " +
+                "different connection between inner and outer");
+
+        log.info("can be seen from inner having Acquired Connection [HikariProxyConnection@**** wrapping conn1" +
+                "while outer has Acquired Connection [HikariProxyConnection@**** wrapping conn0");
+        DefaultTransactionAttribute definition = new DefaultTransactionAttribute();
+
+        definition.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+        TransactionStatus inner = txManager.getTransaction(definition );
+
+        log.info("inner.isNewTransaction()={}", inner.isNewTransaction());
+
+        log.info("transaction inner rollback");
+        txManager.rollback(inner);
+
+        log.info("transaction outer commit");
+        txManager.commit(outer);
+
+    }
+
+
+//    some side effect on TransactionSynchronisationManager
+
+//    @Test
+//    void inner_commit_requires_new() {
+//
+//        log.info("external(outer) transaction start");
+//        TransactionStatus outer = txManager.getTransaction(new
+//                DefaultTransactionAttribute());
+//        log.info("outer.isNewTransaction()={}", outer.isNewTransaction());
+//
+//        DefaultTransactionAttribute definition = new DefaultTransactionAttribute();
+//
+//        definition.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+//        TransactionStatus inner = txManager.getTransaction(definition );
+//
+//        log.info("inner.isNewTransaction()={}", inner.isNewTransaction());
+//
+//        log.info("transaction inner commit");
+//        txManager.commit(outer);
+//
+//        log.info("transaction outer commit");
+//        txManager.commit(inner);
+//
+//    }
 }
